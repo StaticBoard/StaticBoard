@@ -33,7 +33,7 @@ Compared to a basic imageboard setup, this gives you:
 - Easier hosting: no database, no app server, no deploy pipeline required. (Although, that's bad, isn't that?)
 - Easier backup: your board content already lives in GitHub or wherever.
 - Easier manual moderation: GitHub issue tools do a lot of the boring work.
-- Easier editing: boards and repo settings live in plain JS, HTML, and CSS files, with per-board behavior in `scripts/config.js`.
+- Easier editing: engine defaults stay in `scripts/config.js`, while host-owned settings live in `scripts/site-config.js`.
 - Easier boredom solution: fuck around with this bunch of code instead of wasting time on your life.
 
 ## What It Does Not Try To Be
@@ -49,7 +49,7 @@ It is best thought of as a static toy-engine, some fancy way to handle your repo
 
 1. Create a GitHub repo for the board content.
 2. Create the labels you want to use as boards.
-3. Open [scripts/config.js]
+3. Open `scripts/site-config.js`, or use `tools/config-generator.html`.
 4. Set:
    - `CONFIG.github.owner`
    - `CONFIG.github.repo`
@@ -62,10 +62,13 @@ It is best thought of as a static toy-engine, some fancy way to handle your repo
 6. Open the site and tinker shit.
 
 Built-in presets live in `scripts/theme-presets.js`.
+Current built-ins: `red`, `blue`, `monochrome`.
+Host-owned overrides live in `scripts/site-config.js`.
+The generator page lives at `tools/config-generator.html` and exports a fresh `site-config.js`.
 
 ## Board Setup
 
-Boards are defined in `BOARDS` inside `scripts/config.js`.
+Boards are defined in `BOARDS` inside `scripts/site-config.js`.
 
 Example:
 
@@ -83,7 +86,7 @@ const BOARDS = {
     desc: 'Site discussion.',
     allowIds: false,
     readOnly: false,
-    forceThemePreset: 'Blue',
+    forceThemePreset: 'blue',
   },
 };
 ```
@@ -129,7 +132,8 @@ Most management happens directly in GitHub:
 - `board.html`: board/thread shell
 - `log.html`: site log page
 - `board.js`: bootstrap entry
-- `scripts/config.js`: site config and board list
+- `scripts/config.js`: engine config core and helpers
+- `scripts/site-config.js`: host-owned repo, labels, theme, and board overrides
 - `scripts/theme-presets.js`: built-in theme registry
 - `scripts/api.js`: GitHub API layer
 - `scripts/utils.js`: parsing and rendering helpers
@@ -142,6 +146,9 @@ Most management happens directly in GitHub:
 - `scripts/views/board-view.js`: board page UI
 - `scripts/views/thread-view.js`: thread page UI
 - `style.css`: main styling
+- `tools/config-generator.html`: standalone hoster utility for generating `site-config.js`
+- `tools/config-generator.js`: generator logic
+- `tools/config-generator.css`: generator styling
 
 ## Notes
 
