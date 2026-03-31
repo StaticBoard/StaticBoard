@@ -126,12 +126,12 @@ const ViewBoardSearch = (() => {
 
     if (CONFIG.search.sort === 'updated') {
       results.sort((a, b) =>
-        new Date(b.issue.updated_at || b.issue.created_at || 0) - new Date(a.issue.updated_at || a.issue.created_at || 0)
+        getResultSortTime(b.issue) - getResultSortTime(a.issue)
       );
     } else {
       results.sort((a, b) =>
         b.matchCount - a.matchCount
-        || new Date(b.issue.updated_at || b.issue.created_at || 0) - new Date(a.issue.updated_at || a.issue.created_at || 0)
+        || getResultSortTime(b.issue) - getResultSortTime(a.issue)
       );
     }
 
@@ -162,3 +162,6 @@ const ViewBoardSearch = (() => {
     renderSearchMatches,
   };
 })();
+  function getResultSortTime(issue) {
+    return new Date(issue.bump_at || issue.updated_at || issue.created_at || 0);
+  }
