@@ -6,7 +6,9 @@ const ViewBoard = (() => {
     const meta = Utils.parseMeta(issue.body);
     const previewData = Utils.renderPreview(issue.body, CONFIG.previewChars, CONFIG.previewLines, quoteMap);
     const replies = issue.comments;
-    const lastReplyAt = replies > 0 ? (issue.updated_at || issue.created_at) : null;
+    const lastReplyAt = replies > 0
+      ? (issue.last_reply_at || issue.updated_at || issue.created_at)
+      : null;
     const isClosed = API.isThreadClosed(issue);
     const safeTitle = Utils.sanitizeText(issue.title);
     const searchMatchesHtml = ViewBoardSearch.renderSearchMatches(searchMatches, board, issue.number);
@@ -159,37 +161,57 @@ const ViewBoard = (() => {
     const toggleFormBtn = document.getElementById('toggle-form-btn');
     const closeFormBtn = document.getElementById('close-form-btn');
     const submitThreadBtn = document.getElementById('f-submit');
+    const subjectField = document.getElementById('f-subject');
+    const bodyField = document.getElementById('f-body');
     const idsField = document.getElementById('f-ids');
+    const formWrap = document.getElementById('postform-wrap');
+
+    const openThreadForm = () => {
+      if (!formWrap || !toggleFormBtn) return;
+      formWrap.style.display = 'block';
+      toggleFormBtn.textContent = '[Close Form]';
+      Settings.bindNameField('f-name');
+    };
+
+    const closeThreadForm = () => {
+      if (!formWrap || !toggleFormBtn) return;
+      formWrap.style.display = 'none';
+      toggleFormBtn.textContent = '[Start a New Thread]';
+    };
+
+    const saveThreadDraft = () => {
+      if (!subjectField || !bodyField) return;
+
+      Drafts.saveThread(board, {
+        subject: subjectField.value,
+        body: bodyField.value,
+        idsEnabled: idsField ? idsField.checked : false,
+      });
+    };
 
     if (toggleFormBtn) {
       toggleFormBtn.onclick = (e) => {
         e.preventDefault();
-        const wrap = document.getElementById('postform-wrap');
-        if (!wrap) return;
-        const open = wrap.style.display === 'none';
-        wrap.style.display = open ? 'block' : 'none';
-        e.target.textContent = open ? '[Close Form]' : '[Start a New Thread]';
-        if (open) Settings.bindNameField('f-name');
+        if (!formWrap) return;
+        const open = formWrap.style.display === 'none';
+        if (open) {
+          openThreadForm();
+        } else {
+          closeThreadForm();
+        }
       };
     }
 
     if (closeFormBtn) {
       closeFormBtn.onclick = (e) => {
         e.preventDefault();
-        const formWrap = document.getElementById('postform-wrap');
-        if (formWrap) formWrap.style.display = 'none';
-        if (toggleFormBtn) toggleFormBtn.textContent = '[Start a New Thread]';
+        closeThreadForm();
       };
     }
 
     document.getElementById('refresh-btn').onclick = (e) => {
       e.preventDefault();
-      if (searchMode) {
-        fetchBoard(board, searchQuery);
-        return;
-      }
-
-      refreshBoard(board);
+      fetchBoard(board, Router.current().search || '');
     };
 
     if (submitThreadBtn) {
@@ -206,6 +228,30 @@ const ViewBoard = (() => {
         idsField.checked = true;
         idsField.disabled = true;
       }
+    }
+
+    const savedThreadDraft = Drafts.loadThread(board);
+    if (subjectField) subjectField.value = savedThreadDraft.subject;
+    if (bodyField) bodyField.value = savedThreadDraft.body;
+    if (idsField && !forceThreadIds) {
+      idsField.checked = savedThreadDraft.subject || savedThreadDraft.body
+        ? savedThreadDraft.idsEnabled
+        : idsField.checked;
+    }
+
+    if (bodyField) {
+      ViewCore.updateCharCounter('f-body', 'f-body-count');
+      bodyField.addEventListener('input', saveThreadDraft);
+    }
+    if (subjectField) {
+      subjectField.addEventListener('input', saveThreadDraft);
+    }
+    if (idsField) {
+      idsField.addEventListener('change', saveThreadDraft);
+    }
+
+    if (savedThreadDraft.subject || savedThreadDraft.body) {
+      openThreadForm();
     }
 
     const searchInput = document.getElementById('board-search-input');
@@ -479,11 +525,13 @@ const ViewBoard = (() => {
     if (body.length < CONFIG.posts.minBodyChars) { alert('Post is too short.'); return; }
 
     const { display, trip } = await Utils.parseName(rawName);
+    const posterId = idsEnabled ? ThreadIDs.create() : null;
     const fullBody = Utils.encodeMeta(body, {
       display,
       trip,
       sage: false,
       idsEnabled,
+      posterId,
     });
 
     const btn = document.getElementById('f-submit');
@@ -497,6 +545,10 @@ const ViewBoard = (() => {
       Spam.stamp();
       Settings.rememberPostedName(rawName);
       Yous.add(createdThread && createdThread.number);
+      if (idsEnabled && createdThread && createdThread.number) {
+        ThreadIDs.set(createdThread.number, posterId);
+      }
+      Drafts.clearThread(board);
       document.getElementById('f-name').value = '';
       document.getElementById('f-subject').value = '';
       document.getElementById('f-body').value = '';
@@ -508,8 +560,14 @@ const ViewBoard = (() => {
             : Boolean(boardConfig.defaultIdsEnabled);
       }
       ViewCore.updateCharCounter('f-body', 'f-body-count');
-      document.getElementById('postform-wrap').style.display = 'none';
-      document.getElementById('toggle-form-btn').textContent = '[Start a New Thread]';
+      const postformWrap = document.getElementById('postform-wrap');
+      if (postformWrap) {
+        postformWrap.style.display = 'none';
+      }
+      const toggleFormBtn = document.getElementById('toggle-form-btn');
+      if (toggleFormBtn) {
+        toggleFormBtn.textContent = '[Start a New Thread]';
+      }
       await fetchBoard(board, Router.current().search || '');
     } catch (e) {
       alert('Failed to post. Check token/permissions.');
