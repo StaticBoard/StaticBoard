@@ -28,13 +28,7 @@ StaticBoard covers those basics in a weird but quasi-practical way:
 
 ## What It Does Well
 
-Compared to a basic imageboard setup, this gives you:
-
-- Easier hosting: no database, no app server, no deploy pipeline required. (Although, that's bad, isn't that?)
-- Easier backup: your board content already lives in GitHub or wherever.
-- Easier manual moderation: GitHub issue tools do a lot of the boring work.
-- Easier editing: engine defaults stay in `scripts/config.js`, while host-owned settings live in `scripts/site-config.js`.
-- Easier boredom solution: fuck around with this bunch of code instead of wasting time on your life.
+Nothing really useful, really.
 
 ## What It Does Not Try To Be
 
@@ -56,9 +50,8 @@ It is best thought of as a static toy-engine, some fancy way to handle your repo
    - `CONFIG.github.token` -- hosting it plainly will let anyone abuse it so think of the way around yourself, I didn't care at the moment.
    - `CONFIG.labels.log`
    - `CONFIG.labels.pinned`
-   - `CONFIG.ui.defaultThemePreset` -- the site-wide built-in preset used when a page or board does not set its own default
    - `BOARDS`
-5. Upload this folder to your static host. (Nekoweb works like a charm)
+5. Upload allat to your static host. (Nekoweb works like a charm) -- don't upload tools BTW.
 6. Open the site and tinker shit.
 
 Built-in presets live in `scripts/theme-presets.js`.
