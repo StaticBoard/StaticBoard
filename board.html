@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StaticBoard</title>
+  <link rel="stylesheet" href="/style.css">
+  <!-- marked and DOMPurify removed: markdown was overriding greentext rendering.
+       board.js now uses a plain-text renderer that correctly handles >greentext. -->
+</head>
+<body>
+
+<nav>
+  <a href="/">[Home]</a>
+  <a href="/log.html">[Log]</a>
+  <!-- Board links are injected dynamically by board.js buildNav() -->
+  <div class="nav-boards"></div>
+</nav>
+
+<!-- board.js renders everything into #app -->
+<div id="app"></div>
+
+<footer>
+  — <a href="/">home</a> —
+</footer>
+
+<script src="/scripts/config.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/utils.js"></script>
+<script src="/scripts/persistence.js"></script>
+<script src="/scripts/routing.js"></script>
+<script src="/scripts/views/core.js"></script>
+<script src="/scripts/views/quote-preview.js"></script>
+<script src="/scripts/views/board-search.js"></script>
+<script src="/scripts/views/board-view.js"></script>
+<script src="/scripts/views/thread-view.js"></script>
+<script src="/scripts/views.js"></script>
+<script src="/board.js"></script>
+</body>
+</html>
