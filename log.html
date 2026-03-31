@@ -5,6 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Log</title>
   <link rel="stylesheet" href="/style.css">
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('boardSettings');
+        if (!raw) return;
+        var settings = JSON.parse(raw);
+        var css = typeof settings.customCss === 'string' ? settings.customCss.trim() : '';
+        if (!css) return;
+
+        var style = document.createElement('style');
+        style.id = 'custom-settings-css';
+        style.textContent = css;
+        document.head.appendChild(style);
+      } catch (_) {}
+    })();
+  </script>
 </head>
 <body>
 
