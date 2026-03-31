@@ -101,70 +101,10 @@ const Settings = (() => {
   const STORAGE_VERSION = 1;
   const MAX_CUSTOM_CSS_CHARS = 12000;
   const CUSTOM_CSS_STYLE_ID = 'custom-settings-css';
-  const THEME_PRESETS = Object.freeze({
-    default: {
-      label: 'Default',
-      css: `:root {
-  --fg: #800000;
-  --border: #d9bfb7;
-  --link: #34345c;
-  --link-hover: #dd0000;
-  --table-bg: #ffffee;
-  --body-bg: #d4b8b0;
-  --post-bg: #f0e0d6;
-  --greentext: #789922;
-  --post-outline-color: #c9a89e;
-  --reply-outline-color: #b8a090;
-  --op-name: #ffcc88;
-  --op-trip: #ffffaa;
-  --op-time: #ddd;
-  --op-post-num: #ffaaaa;
-  --reply-header-bg: #c8a870;
-  --reply-header-fg: #000;
-  --reply-name: #800000;
-  --reply-trip: #555;
-  --reply-time: #444;
-  --reply-post-num: #800000;
-  --sticky: #ffcc88;
-  --thread-mode: #d6f0ff;
-  --poster-id-bg: transparent;
-  --gh-link: #f0e0d6;
-}`,
-    },
-    blue: {
-      label: 'Blue',
-      css: `:root {
-  --fg: #1f4a7a;
-  --border: #b8cade;
-  --link: #22548c;
-  --link-hover: #b94d31;
-  --table-bg: #f7fbff;
-  --body-bg: #dfe9f5;
-  --post-bg: #edf4fb;
-  --greentext: #2d7a45;
-  --post-outline-color: #a9bfd7;
-  --reply-outline-color: #9db4cc;
-  --op-name: #c8e0ff;
-  --op-trip: #eef6ff;
-  --op-time: #dcecff;
-  --op-post-num: #cfe3ff;
-  --reply-header-bg: #bfd3e8;
-  --reply-header-fg: #17324c;
-  --reply-name: #214d78;
-  --reply-trip: #355d84;
-  --reply-time: #3a5d79;
-  --reply-post-num: #274c70;
-  --sticky: #f4d38a;
-  --thread-mode: #d6eeff;
-  --poster-id-bg: rgba(255, 255, 255, 0.55);
-  --gh-link: #eef6ff;
-}`,
-    },
-  });
   const DEFAULTS = Object.freeze({
     version: STORAGE_VERSION,
     defaultName: '',
-    themePreset: 'default',
+    themePreset: '',
     customCss: '',
   });
 
@@ -174,6 +114,7 @@ const Settings = (() => {
   let inputEl = null;
   let cssEl = null;
   let presetEl = null;
+  let themeNoteEl = null;
   let yousEl = null;
   let statusEl = null;
   let styleEl = null;
@@ -183,18 +124,11 @@ const Settings = (() => {
     return Utils.sanitizeText(raw, { maxChars: 20 }).trim();
   }
 
-  function sanitizeState(raw = {}) {
-    return {
-      version: STORAGE_VERSION,
-      defaultName: normalizeName(raw.defaultName || ''),
-      themePreset: normalizeThemePreset(raw.themePreset || 'default'),
-      customCss: normalizeCustomCss(raw.customCss || ''),
-    };
-  }
-
-  function normalizeThemePreset(raw) {
-    const key = String(raw || '').trim();
-    return THEME_PRESETS[key] ? key : 'default';
+  function normalizeThemePreset(raw, options = {}) {
+    const { allowBlank = false, fallbackKey = DEFAULT_THEME_PRESET_KEY } = options;
+    const normalized = String(raw || '').trim();
+    if (!normalized) return allowBlank ? '' : getThemePresetKey('', fallbackKey);
+    return getThemePresetKey(normalized, fallbackKey);
   }
 
   function normalizeCustomCss(raw) {
@@ -202,6 +136,19 @@ const Settings = (() => {
       .replace(/\r\n?/g, '\n')
       .slice(0, MAX_CUSTOM_CSS_CHARS)
       .trim();
+  }
+
+  function getEngineDefaultThemePreset() {
+    return getThemePresetKey(CONFIG.ui.defaultThemePreset || DEFAULT_THEME_PRESET_KEY);
+  }
+
+  function sanitizeState(raw = {}) {
+    return {
+      version: STORAGE_VERSION,
+      defaultName: normalizeName(raw.defaultName || DEFAULTS.defaultName),
+      themePreset: normalizeThemePreset(raw.themePreset, { allowBlank: true }),
+      customCss: normalizeCustomCss(raw.customCss || DEFAULTS.customCss),
+    };
   }
 
   function loadState() {
@@ -239,13 +186,75 @@ const Settings = (() => {
     return styleEl;
   }
 
-  function applyThemeCss(nextState) {
-    ensureStyleEl().textContent = nextState.customCss || '';
+  function getCurrentBoardKey() {
+    try {
+      if (typeof Router !== 'undefined' && Router && typeof Router.current === 'function') {
+        const current = Router.current();
+        if (current && current.board && getBoardConfig(current.board)) {
+          return current.board;
+        }
+      }
+    } catch (e) {
+      // Fall back to parsing the URL directly.
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const board = String(params.get('board') || '').trim();
+    return board && getBoardConfig(board) ? board : null;
+  }
+
+  function getEffectiveThemeState(boardKey = getCurrentBoardKey(), rawState = state) {
+    const policy = getBoardThemePolicy(boardKey);
+
+    if (policy.forcePreset) {
+      return {
+        ...policy,
+        themePreset: policy.forcePreset,
+        customCss: getThemePreset(policy.forcePreset, policy.defaultPreset).css,
+        source: 'board-forced',
+      };
+    }
+
+    const savedThemePreset = normalizeThemePreset(rawState.themePreset, {
+      allowBlank: true,
+      fallbackKey: policy.defaultPreset,
+    });
+    const savedCustomCss = normalizeCustomCss(rawState.customCss);
+
+    if (savedThemePreset || savedCustomCss) {
+      const themePreset = savedThemePreset || policy.defaultPreset;
+      return {
+        ...policy,
+        themePreset,
+        customCss: savedCustomCss || getThemePreset(themePreset, policy.defaultPreset).css,
+        source: savedCustomCss ? 'user-custom' : 'user-preset',
+      };
+    }
+
+    return {
+      ...policy,
+      themePreset: policy.defaultPreset,
+      customCss: getThemePreset(policy.defaultPreset, policy.siteDefaultPreset).css,
+      source: policy.board && policy.board.defaultThemePreset ? 'board-default' : 'site-default',
+    };
+  }
+
+  function applyThemeCss(cssText) {
+    ensureStyleEl().textContent = cssText || '';
+  }
+
+  function syncRouteTheme(boardKey = getCurrentBoardKey()) {
+    const effectiveTheme = getEffectiveThemeState(boardKey);
+    applyThemeCss(effectiveTheme.customCss);
+    return effectiveTheme;
   }
 
   function loadPresetIntoEditor(presetKey) {
-    const normalizedKey = normalizeThemePreset(presetKey);
-    const preset = THEME_PRESETS[normalizedKey];
+    const effectiveTheme = getEffectiveThemeState();
+    const normalizedKey = normalizeThemePreset(presetKey, {
+      fallbackKey: effectiveTheme.defaultPreset,
+    });
+    const preset = getThemePreset(normalizedKey, effectiveTheme.defaultPreset);
     if (!preset || !cssEl || !presetEl) return;
 
     presetEl.value = normalizedKey;
@@ -254,11 +263,25 @@ const Settings = (() => {
   }
 
   function syncDialog() {
-    if (!dialogEl || !inputEl || !cssEl || !presetEl || !yousEl) return;
+    if (!dialogEl || !inputEl || !cssEl || !presetEl || !themeNoteEl || !yousEl) return;
+    const effectiveTheme = getEffectiveThemeState();
+    const editorThemePreset = state.themePreset || effectiveTheme.themePreset;
+    const editorCss = state.customCss || getThemePreset(editorThemePreset, effectiveTheme.defaultPreset).css;
+
     inputEl.value = state.defaultName;
-    presetEl.value = state.themePreset;
-    cssEl.value = state.customCss || THEME_PRESETS[state.themePreset].css;
+    presetEl.value = editorThemePreset;
+    cssEl.value = editorCss;
     yousEl.value = Yous.toFieldValue();
+
+    if (effectiveTheme.source === 'board-forced') {
+      themeNoteEl.textContent = `This board forces the ${getThemePreset(effectiveTheme.themePreset).label} preset.`;
+    } else if (!state.themePreset && !state.customCss && effectiveTheme.source === 'board-default') {
+      themeNoteEl.textContent = `This board defaults to the ${getThemePreset(effectiveTheme.themePreset).label} preset until you save your own theme.`;
+    } else if (!state.themePreset && !state.customCss) {
+      themeNoteEl.textContent = `Using the site default ${getThemePreset(effectiveTheme.themePreset).label} preset.`;
+    } else {
+      themeNoteEl.textContent = '';
+    }
   }
 
   function applyDefaultName(input, options = {}) {
@@ -301,30 +324,54 @@ const Settings = (() => {
     bindNameField('r-name', options);
   }
 
-  function setState(nextState) {
+  function setState(nextState, options = {}) {
     state = sanitizeState(nextState);
     persistState();
-    applyThemeCss(state);
+    const appliedTheme = syncRouteTheme(options.boardKey);
     syncDialog();
     syncKnownNameFields();
+    return appliedTheme;
   }
 
   function saveFromDialog() {
+    const hadThemeOverride = Boolean(state.themePreset || state.customCss);
     const nextDefaultName = normalizeName(inputEl ? inputEl.value : '');
-    const nextThemePreset = normalizeThemePreset(presetEl ? presetEl.value : 'default');
-    const nextCustomCss = normalizeCustomCss(cssEl ? cssEl.value : '');
+    const effectiveTheme = getEffectiveThemeState();
+    let nextThemePreset = normalizeThemePreset(
+      presetEl ? presetEl.value : effectiveTheme.defaultPreset,
+      { fallbackKey: effectiveTheme.defaultPreset }
+    );
+    let nextCustomCss = normalizeCustomCss(cssEl ? cssEl.value : '');
+
+    if (!hadThemeOverride) {
+      const fallbackCss = normalizeCustomCss(effectiveTheme.customCss);
+      if (nextThemePreset === effectiveTheme.themePreset && nextCustomCss === fallbackCss) {
+        nextThemePreset = '';
+        nextCustomCss = '';
+      }
+    }
+
     const changed = nextDefaultName !== state.defaultName
       || nextThemePreset !== state.themePreset
       || nextCustomCss !== state.customCss;
 
-    setState({
+    const appliedTheme = setState({
       ...state,
       defaultName: nextDefaultName,
       themePreset: nextThemePreset,
       customCss: nextCustomCss,
     });
 
-    showStatus(changed ? 'Saved.' : 'No changes to save.');
+    if (!changed) {
+      showStatus('No changes to save.');
+      return;
+    }
+
+    showStatus(
+      appliedTheme.source === 'board-forced'
+        ? `Saved. This board still forces the ${getThemePreset(appliedTheme.themePreset).label} preset.`
+        : 'Saved.'
+    );
   }
 
   function clearFromDialog() {
@@ -336,14 +383,15 @@ const Settings = (() => {
     showStatus('Name cleared.');
   }
 
-  function resetCssFromDialog() {
+  function resetThemeFromDialog() {
     if (cssEl) cssEl.value = '';
+    if (presetEl) presetEl.value = getEngineDefaultThemePreset();
     setState({
       ...state,
-      themePreset: 'default',
+      themePreset: '',
       customCss: '',
     });
-    showStatus('CSS reset.');
+    showStatus('Theme reset to board or site default.');
   }
 
   function clearYousFromDialog() {
@@ -445,6 +493,10 @@ const Settings = (() => {
                     `<option value="${Utils.escHtml(key)}">${Utils.escHtml(preset.label)}</option>`
                   ).join('')}
                 </select>
+                <div class="settings-theme-note" id="settings-theme-note"></div>
+                <div class="settings-inline-actions">
+                  <button type="button" class="settings-secondary-btn" id="settings-reset-theme-btn">Reset Theme</button>
+                </div>
               </div>
             </div>
             <div class="form-row settings-form-row settings-yous-row">
@@ -471,6 +523,7 @@ const Settings = (() => {
     inputEl = dialogEl.querySelector('#settings-default-name');
     cssEl = dialogEl.querySelector('#settings-custom-css');
     presetEl = dialogEl.querySelector('#settings-theme-preset');
+    themeNoteEl = dialogEl.querySelector('#settings-theme-note');
     yousEl = dialogEl.querySelector('#settings-yous');
     statusEl = dialogEl.querySelector('#settings-status');
 
@@ -479,6 +532,7 @@ const Settings = (() => {
     });
 
     dialogEl.querySelector('#settings-save-btn').addEventListener('click', saveFromDialog);
+    dialogEl.querySelector('#settings-reset-theme-btn').addEventListener('click', resetThemeFromDialog);
     dialogEl.querySelector('#settings-clear-yous-btn').addEventListener('click', clearYousFromDialog);
     presetEl.addEventListener('change', () => {
       loadPresetIntoEditor(presetEl.value);
@@ -541,7 +595,7 @@ const Settings = (() => {
   }
 
   function initUI() {
-    applyThemeCss(state);
+    syncRouteTheme();
     ensureNavButton();
     ensureDialog();
     syncKnownNameFields();
@@ -557,6 +611,7 @@ const Settings = (() => {
     openDialog,
     bindNameField,
     rememberPostedName,
+    syncRouteTheme,
     getDefaultName: () => state.defaultName,
   };
 })();
