@@ -372,7 +372,7 @@ const Utils = (() => {
     const youHtml = isYou
       ? ' <span class="you-marker">(You)</span>'
       : '';
-    const idHtml = isReply && meta.posterId
+    const idHtml = meta.posterId
       ? ` <span class="poster-id">ID:${escHtml(meta.posterId)}</span>`
       : '';
     const nameClasses = [
