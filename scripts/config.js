@@ -3,6 +3,8 @@
 // ============================================================
 // CONFIG
 // ============================================================
+// Engine defaults and helpers live here.
+// Site-specific values should go in /scripts/site-config.js.
 
 const CONFIG = {
   github: {
@@ -92,39 +94,7 @@ const BOARD_DEFAULTS = Object.freeze({
 // - forceThemePreset: always force a preset on this board
 // - threadSubjectPlaceholder / threadCommentPlaceholder / replyCommentPlaceholder
 // - emptyBoardMessage / readOnlyMessage / repliesDisabledMessage / searchPlaceholder
-const BOARDS = {
-  plaza: {
-    name: '/plaza/',
-    desc: 'The place to post.',
-    defaultIdsEnabled: true,
-    forceThreadIds: false,
-    threadSubjectPlaceholder: 'Start a thread',
-    threadCommentPlaceholder: 'Post something worth reading. . .',
-    replyCommentPlaceholder: 'Reply. . .',
-    searchPlaceholder: 'Search /plaza/',
-    defaultThemePreset: 'monochrome',
-    showInNav: true,
-  },
-  meta: {
-    name: '/meta/',
-    desc: 'I am known as the ultimate master!',
-    allowIds: false,
-    threadSubjectPlaceholder: 'Meta topic',
-    threadCommentPlaceholder: 'Talk about the engine, site, or bugs...',
-    replyCommentPlaceholder: 'Write a meta reply...',
-    searchPlaceholder: 'Search /meta/',
-    defaultThemePreset: 'blue',
-  },
-  test: {
-    name: '/test/',
-    desc: 'Test.',
-    showInDirectory: true,
-    threadSubjectPlaceholder: 'Test thread',
-    threadCommentPlaceholder: 'Throw junk in here...',
-    replyCommentPlaceholder: 'Reply with more junk...',
-    forceThreadIds: true,
-  },
-};
+const BOARDS = {};
 
 
 // ============================================================
