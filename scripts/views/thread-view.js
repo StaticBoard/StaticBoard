@@ -154,6 +154,7 @@ const ViewThread = (() => {
       const trimmed = textarea.value.trimEnd();
       textarea.value = trimmed ? `${trimmed}\n${quoteLine}\n` : `${quoteLine}\n`;
       ViewCore.updateCharCounter('r-body', 'r-body-count');
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     textarea.focus();
@@ -254,25 +255,49 @@ const ViewThread = (() => {
     const toggleReplyBtn = document.getElementById('toggle-reply-btn');
     const closeReplyBtn = document.getElementById('close-replyform');
     const submitReplyBtn = document.getElementById('r-submit');
+    const replyBodyField = document.getElementById('r-body');
+    const replySageField = document.getElementById('r-sage');
+    const replyFormInner = document.getElementById('replyform-inner');
+
+    const openReplyForm = () => {
+      if (!replyFormInner || !toggleReplyBtn) return;
+      replyFormInner.style.display = 'block';
+      toggleReplyBtn.textContent = '[Close]';
+      Settings.bindNameField('r-name');
+    };
+
+    const closeReplyForm = () => {
+      if (!replyFormInner || !toggleReplyBtn) return;
+      replyFormInner.style.display = 'none';
+      toggleReplyBtn.textContent = '[Post a Reply]';
+    };
+
+    const saveReplyDraft = () => {
+      if (!replyBodyField || !replySageField) return;
+
+      Drafts.saveReply(board, threadId, {
+        body: replyBodyField.value,
+        sage: replySageField.checked,
+      });
+    };
 
     if (toggleReplyBtn) {
       toggleReplyBtn.onclick = (e) => {
         e.preventDefault();
-        const el = document.getElementById('replyform-inner');
-        if (!el) return;
-        const open = el.style.display === 'none';
-        el.style.display = open ? 'block' : 'none';
-        e.target.textContent = open ? '[Close]' : '[Post a Reply]';
-        if (open) Settings.bindNameField('r-name');
+        if (!replyFormInner) return;
+        const open = replyFormInner.style.display === 'none';
+        if (open) {
+          openReplyForm();
+        } else {
+          closeReplyForm();
+        }
       };
     }
 
     if (closeReplyBtn) {
       closeReplyBtn.onclick = (e) => {
         e.preventDefault();
-        const replyFormInner = document.getElementById('replyform-inner');
-        if (replyFormInner) replyFormInner.style.display = 'none';
-        if (toggleReplyBtn) toggleReplyBtn.textContent = '[Post a Reply]';
+        closeReplyForm();
       };
     }
 
@@ -299,6 +324,21 @@ const ViewThread = (() => {
       submitReplyBtn.onclick = () => submitReply(board, threadId);
       ViewCore.bindCharCounter('r-body', 'r-body-count');
       Settings.bindNameField('r-name');
+    }
+
+    const savedReplyDraft = Drafts.loadReply(board, threadId);
+    if (replyBodyField) {
+      replyBodyField.value = savedReplyDraft.body;
+      ViewCore.updateCharCounter('r-body', 'r-body-count');
+      replyBodyField.addEventListener('input', saveReplyDraft);
+    }
+    if (replySageField) {
+      replySageField.checked = savedReplyDraft.body ? savedReplyDraft.sage : false;
+      replySageField.addEventListener('change', saveReplyDraft);
+    }
+
+    if (savedReplyDraft.body) {
+      openReplyForm();
     }
 
     await fetchThread(threadId, board);
@@ -435,12 +475,15 @@ const ViewThread = (() => {
       Spam.stamp();
       Settings.rememberPostedName(rawName);
       Yous.add(createdReply && createdReply.id);
+      Drafts.clearReply(board, threadId);
       document.getElementById('r-name').value = '';
       document.getElementById('r-body').value = '';
       ViewCore.updateCharCounter('r-body', 'r-body-count');
       document.getElementById('r-sage').checked = false;
-      document.getElementById('replyform-inner').style.display = 'none';
-      document.getElementById('toggle-reply-btn').textContent = '[Post a Reply]';
+      const replyFormInner = document.getElementById('replyform-inner');
+      if (replyFormInner) replyFormInner.style.display = 'none';
+      const toggleReplyBtn = document.getElementById('toggle-reply-btn');
+      if (toggleReplyBtn) toggleReplyBtn.textContent = '[Post a Reply]';
 
       const comments = await API.getReplies(threadId);
       if (requestToken !== ViewsState.threadRequestToken) return;
