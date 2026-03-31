@@ -46,39 +46,14 @@ const CONFIG = {
   },
   ui: {
     defaultBoard: null,
+    // Pick the built-in preset the site should start with outside any
+    // board-specific override.
+    defaultThemePreset: 'red',
   },
-
-  // Backwards-compatible aliases for the older flat config shape.
-  get owner() { return this.github.owner; },
-  set owner(value) { this.github.owner = String(value || '').trim(); },
-
-  get repo() { return this.github.repo; },
-  set repo(value) { this.github.repo = String(value || '').trim(); },
-
-  get token() { return this.github.token; },
-  set token(value) { this.github.token = String(value || '').trim(); },
-
-  get cooldown() { return this.posts.cooldownSeconds; },
-  set cooldown(value) { this.posts.cooldownSeconds = Number(value) || 0; },
-
-  get refresh() { return this.timers.threadRefreshSeconds; },
-  set refresh(value) { this.timers.threadRefreshSeconds = Number(value) || 0; },
-
-  get perPage() { return this.listing.threadsPerPage; },
-  set perPage(value) { this.listing.threadsPerPage = Number(value) || 0; },
-
-  get maxBodyChars() { return this.posts.maxBodyChars; },
-  set maxBodyChars(value) { this.posts.maxBodyChars = Number(value) || 0; },
-
-  get maxCombiningMarks() { return this.text.maxCombiningMarks; },
-  set maxCombiningMarks(value) { this.text.maxCombiningMarks = Number(value) || 0; },
-
-  get previewChars() { return this.listing.previewChars; },
-  set previewChars(value) { this.listing.previewChars = Number(value) || 0; },
-
-  get previewLines() { return this.listing.previewLines; },
-  set previewLines(value) { this.listing.previewLines = Number(value) || 0; },
 };
+
+// ============================================================
+// ============================================================
 
 const BOARD_DEFAULTS = Object.freeze({
   name: '/board/',
@@ -93,6 +68,8 @@ const BOARD_DEFAULTS = Object.freeze({
   defaultIdsEnabled: null,
   forceThreadIds: false,
   searchEnabled: true,
+  defaultThemePreset: null,
+  forceThemePreset: null,
   threadSubjectPlaceholder: 'Thread subject',
   threadCommentPlaceholder: 'Write something...',
   replyCommentPlaceholder: 'Write something...',
@@ -111,6 +88,8 @@ const BOARD_DEFAULTS = Object.freeze({
 // - allowIds / defaultIdsEnabled: configure thread IDs per board
 // - forceThreadIds: require every new thread on the board to enable IDs
 // - searchEnabled: disable board search entirely
+// - defaultThemePreset: choose theme preset if user does not override
+// - forceThemePreset: always force a preset on this board
 // - threadSubjectPlaceholder / threadCommentPlaceholder / replyCommentPlaceholder
 // - emptyBoardMessage / readOnlyMessage / repliesDisabledMessage / searchPlaceholder
 const BOARDS = {
@@ -123,6 +102,7 @@ const BOARDS = {
     threadCommentPlaceholder: 'Post something worth reading. . .',
     replyCommentPlaceholder: 'Reply. . .',
     searchPlaceholder: 'Search /plaza/',
+    defaultThemePreset: 'monochrome',
     showInNav: true,
   },
   meta: {
@@ -133,6 +113,7 @@ const BOARDS = {
     threadCommentPlaceholder: 'Talk about the engine, site, or bugs...',
     replyCommentPlaceholder: 'Write a meta reply...',
     searchPlaceholder: 'Search /meta/',
+    defaultThemePreset: 'blue',
   },
   test: {
     name: '/test/',
@@ -141,12 +122,22 @@ const BOARDS = {
     threadSubjectPlaceholder: 'Test thread',
     threadCommentPlaceholder: 'Throw junk in here...',
     replyCommentPlaceholder: 'Reply with more junk...',
-    forceThreadIds: true, 
+    forceThreadIds: true,
   },
 };
 
+
+// ============================================================
+// ============================================================
+// ============================================================
+
 function getBoardKeys() {
   return Object.keys(BOARDS);
+}
+
+function normalizeOptionalThemePreset(rawKey, fallbackKey) {
+  const normalizedKey = String(rawKey || '').trim();
+  return normalizedKey ? getThemePresetKey(normalizedKey, fallbackKey) : null;
 }
 
 function getBoardConfig(boardKey) {
@@ -154,6 +145,12 @@ function getBoardConfig(boardKey) {
   if (!raw) return null;
 
   const forceThreadIds = Boolean(raw.forceThreadIds);
+  const siteDefaultPreset = getThemePresetKey(CONFIG.ui.defaultThemePreset);
+  const defaultThemePreset = normalizeOptionalThemePreset(raw.defaultThemePreset, siteDefaultPreset);
+  const forceThemePreset = normalizeOptionalThemePreset(
+    raw.forceThemePreset,
+    defaultThemePreset || siteDefaultPreset
+  );
 
   return {
     ...BOARD_DEFAULTS,
@@ -165,7 +162,28 @@ function getBoardConfig(boardKey) {
       : raw.defaultIdsEnabled == null
         ? BOARD_DEFAULTS.defaultIdsEnabled
         : Boolean(raw.defaultIdsEnabled),
+    defaultThemePreset,
+    forceThemePreset,
     forceThreadIds,
+  };
+}
+
+function getBoardThemePolicy(boardKey = null) {
+  const board = boardKey ? getBoardConfig(boardKey) : null;
+  const siteDefaultPreset = getThemePresetKey(CONFIG.ui.defaultThemePreset);
+  const defaultPreset = board && board.defaultThemePreset
+    ? board.defaultThemePreset
+    : siteDefaultPreset;
+  const forcePreset = board && board.forceThemePreset
+    ? board.forceThemePreset
+    : null;
+
+  return {
+    board,
+    siteDefaultPreset,
+    defaultPreset,
+    forcePreset,
+    isForced: Boolean(forcePreset),
   };
 }
 
@@ -183,3 +201,49 @@ function getDefaultBoardKey() {
   const keys = getBoardKeys();
   return keys.length ? keys[0] : null;
 }
+
+// Backwards-compatible aliases for the older flat config shape. The rest of the
+// engine still reads these in a few places, so keeping them avoids a noisier
+// migration while the nested config is rolled out.
+Object.defineProperties(CONFIG, {
+  owner: {
+    get() { return this.github.owner; },
+    set(value) { this.github.owner = String(value || '').trim(); },
+  },
+  repo: {
+    get() { return this.github.repo; },
+    set(value) { this.github.repo = String(value || '').trim(); },
+  },
+  token: {
+    get() { return this.github.token; },
+    set(value) { this.github.token = String(value || '').trim(); },
+  },
+  cooldown: {
+    get() { return this.posts.cooldownSeconds; },
+    set(value) { this.posts.cooldownSeconds = Number(value) || 0; },
+  },
+  refresh: {
+    get() { return this.timers.threadRefreshSeconds; },
+    set(value) { this.timers.threadRefreshSeconds = Number(value) || 0; },
+  },
+  perPage: {
+    get() { return this.listing.threadsPerPage; },
+    set(value) { this.listing.threadsPerPage = Number(value) || 0; },
+  },
+  maxBodyChars: {
+    get() { return this.posts.maxBodyChars; },
+    set(value) { this.posts.maxBodyChars = Number(value) || 0; },
+  },
+  maxCombiningMarks: {
+    get() { return this.text.maxCombiningMarks; },
+    set(value) { this.text.maxCombiningMarks = Number(value) || 0; },
+  },
+  previewChars: {
+    get() { return this.listing.previewChars; },
+    set(value) { this.listing.previewChars = Number(value) || 0; },
+  },
+  previewLines: {
+    get() { return this.listing.previewLines; },
+    set(value) { this.listing.previewLines = Number(value) || 0; },
+  },
+});
