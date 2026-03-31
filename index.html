@@ -5,6 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BoardEngine</title>
   <link rel="stylesheet" href="/style.css">
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('boardSettings');
+        if (!raw) return;
+        var settings = JSON.parse(raw);
+        var css = typeof settings.customCss === 'string' ? settings.customCss.trim() : '';
+        if (!css) return;
+
+        var style = document.createElement('style');
+        style.id = 'custom-settings-css';
+        style.textContent = css;
+        document.head.appendChild(style);
+      } catch (_) {}
+    })();
+  </script>
 </head>
 <body>
 
@@ -29,9 +45,11 @@
       </tr>
       <tr>
         <td class="welcome-body">
-          <p>Welcome.</p>
-          <p>Powered by GitHub Issues to pretend to be an imageboard.</p>
-          <p>See Log for some info</p>
+          <div class="welcome-copy">
+            <div class="welcome-copy-title">Welcome.</div>
+            <div>Powered by GitHub Issues to pretend to be an imageboard.</div>
+            <div>See the <a href="https://github.com/StaticBoard/StaticBoard">repository</a> for more info</div>
+          </div>
         </td>
       </tr>
     </tbody>
