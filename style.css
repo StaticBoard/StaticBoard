@@ -198,13 +198,23 @@ hr {
 .welcome-table td.welcome-body {
   padding: 12px 20px;
   color: #333;
-  line-height: 1.8;
+  line-height: 1.45;
   font-size: 12px;
   text-align: center;
   position: relative;
-  padding-bottom: 34px;
+  padding-bottom: 12px;
 }
-.welcome-table td.welcome-body p { margin: 4px 0; }
+.welcome-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.welcome-copy-title {
+  color: var(--fg);
+  font-size: 16px;
+  font-weight: bold;
+}
 .welcome-table td.welcome-body a { color: var(--link); }
 .welcome-table td.welcome-body a:hover { color: var(--link-hover); }
 .welcome-table td.welcome-body code {
