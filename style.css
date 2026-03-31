@@ -477,14 +477,19 @@ main {
   white-space: pre;
 }
 .settings-preset-select {
-  border: 1px solid var(--border);
-  background: #fff;
-  padding: 4px 6px;
-  font-family: arial, helvetica, sans-serif;
-  font-size: 12px;
-}
-.settings-yous-input {
-  min-height: 58px;
+    border: 1px solid var(--border);
+    background: #fff;
+    padding: 4px 6px;
+    font-family: arial, helvetica, sans-serif;
+    font-size: 12px;
+  }
+  .settings-theme-note {
+    font-size: 11px;
+    color: #666;
+    line-height: 1.35;
+  }
+  .settings-yous-input {
+    min-height: 58px;
   resize: none;
   background: #f7f2ec;
   color: #555;
