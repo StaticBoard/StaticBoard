@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/scripts/theme-presets.js"></script>
+  <script src="/scripts/config.js"></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Log</title>
@@ -9,9 +11,27 @@
     (function () {
       try {
         var raw = localStorage.getItem('boardSettings');
-        if (!raw) return;
-        var settings = JSON.parse(raw);
-        var css = typeof settings.customCss === 'string' ? settings.customCss.trim() : '';
+        var settings = raw ? JSON.parse(raw) : {};
+        var savedPreset = typeof settings.themePreset === 'string' ? settings.themePreset.trim() : '';
+        var savedCss = typeof settings.customCss === 'string' ? settings.customCss.trim() : '';
+        var policy = getBoardThemePolicy(null);
+        var presetKey = policy.defaultPreset;
+        var css = '';
+
+        if (policy.forcePreset) {
+          presetKey = policy.forcePreset;
+          css = getThemePreset(presetKey, policy.defaultPreset).css;
+        } else if (savedCss) {
+          presetKey = getThemePresetKey(savedPreset, policy.defaultPreset);
+          css = savedCss;
+        } else if (savedPreset) {
+          presetKey = getThemePresetKey(savedPreset, policy.defaultPreset);
+          css = getThemePreset(presetKey, policy.defaultPreset).css;
+        } else {
+          css = getThemePreset(policy.defaultPreset, policy.siteDefaultPreset).css;
+        }
+
+        css = typeof css === 'string' ? css.trim() : '';
         if (!css) return;
 
         var style = document.createElement('style');
@@ -56,7 +76,6 @@
   — <a href="/">home</a> —
 </footer>
 
-<script src="/scripts/config.js"></script>
 <script src="/scripts/api.js"></script>
 <script src="/scripts/utils.js"></script>
 <script src="/scripts/persistence.js"></script>
