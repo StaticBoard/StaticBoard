@@ -11,6 +11,7 @@ async function render() {
   if (!app) return;
 
   const { board, thread, search } = Router.current();
+  Settings.syncRouteTheme(board);
 
   if (thread && board && getBoardConfig(board)) {
     await Views.showThread(board, thread);
