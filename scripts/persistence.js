@@ -618,6 +618,125 @@ const Settings = (() => {
 
 
 // ============================================================
+// DRAFTS
+// ============================================================
+
+const Drafts = (() => {
+  const THREAD_PREFIX = 'draft:thread:';
+  const REPLY_PREFIX = 'draft:reply:';
+
+  function threadKey(board) {
+    return `${THREAD_PREFIX}${String(board || '').trim()}`;
+  }
+
+  function replyKey(board, threadId) {
+    return `${REPLY_PREFIX}${String(board || '').trim()}:${String(threadId || '').trim()}`;
+  }
+
+  function normalizeThreadDraft(raw = {}) {
+    return {
+      subject: Utils.sanitizeText(raw.subject || '', { maxChars: CONFIG.posts.maxSubjectChars }),
+      body: Utils.sanitizeText(raw.body || '', { preserveNewlines: true, maxChars: CONFIG.maxBodyChars }),
+      idsEnabled: Boolean(raw.idsEnabled),
+    };
+  }
+
+  function normalizeReplyDraft(raw = {}) {
+    return {
+      body: Utils.sanitizeText(raw.body || '', { preserveNewlines: true, maxChars: CONFIG.maxBodyChars }),
+      sage: Boolean(raw.sage),
+    };
+  }
+
+  function read(key, normalize) {
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return normalize({});
+      return normalize(JSON.parse(raw));
+    } catch (e) {
+      console.warn('Failed to read draft:', e);
+      return normalize({});
+    }
+  }
+
+  function hasThreadContent(draft) {
+    return Boolean(String(draft.subject || '').trim() || String(draft.body || '').trim());
+  }
+
+  function hasReplyContent(draft) {
+    return Boolean(String(draft.body || '').trim());
+  }
+
+  function loadThread(board) {
+    return read(threadKey(board), normalizeThreadDraft);
+  }
+
+  function saveThread(board, draft) {
+    const normalized = normalizeThreadDraft(draft);
+    if (!hasThreadContent(normalized)) {
+      clearThread(board);
+      return normalized;
+    }
+
+    try {
+      sessionStorage.setItem(threadKey(board), JSON.stringify(normalized));
+    } catch (e) {
+      console.warn('Failed to save thread draft:', e);
+    }
+
+    return normalized;
+  }
+
+  function clearThread(board) {
+    sessionStorage.removeItem(threadKey(board));
+  }
+
+  function hasThreadDraft(board) {
+    return hasThreadContent(loadThread(board));
+  }
+
+  function loadReply(board, threadId) {
+    return read(replyKey(board, threadId), normalizeReplyDraft);
+  }
+
+  function saveReply(board, threadId, draft) {
+    const normalized = normalizeReplyDraft(draft);
+    if (!hasReplyContent(normalized)) {
+      clearReply(board, threadId);
+      return normalized;
+    }
+
+    try {
+      sessionStorage.setItem(replyKey(board, threadId), JSON.stringify(normalized));
+    } catch (e) {
+      console.warn('Failed to save reply draft:', e);
+    }
+
+    return normalized;
+  }
+
+  function clearReply(board, threadId) {
+    sessionStorage.removeItem(replyKey(board, threadId));
+  }
+
+  function hasReplyDraft(board, threadId) {
+    return hasReplyContent(loadReply(board, threadId));
+  }
+
+  return {
+    loadThread,
+    saveThread,
+    clearThread,
+    hasThreadDraft,
+    loadReply,
+    saveReply,
+    clearReply,
+    hasReplyDraft,
+  };
+})();
+
+
+// ============================================================
 // THREAD IDS
 // ============================================================
 
@@ -685,7 +804,22 @@ const ThreadIDs = (() => {
     return posterId;
   }
 
-  return { get };
+  function set(threadId, posterId = null) {
+    const key = String(threadId || '').trim();
+    if (!key) return null;
+
+    const map = loadMap();
+    const normalizedPosterId = posterId || createPosterId();
+    map[key] = normalizedPosterId;
+    saveMap(map);
+    return normalizedPosterId;
+  }
+
+  function create() {
+    return createPosterId();
+  }
+
+  return { get, set, create };
 })();
 
 
