@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StaticBoard Config Generator</title>
+  <link rel="stylesheet" href="/tools/config-generator.css">
+  <script src="/scripts/theme-presets.js"></script>
+  <script src="/scripts/config.js"></script>
+  <script src="/scripts/site-config.js"></script>
+</head>
+<body>
+  <main class="generator-shell">
+    <div class="tool-header">
+      <div class="tool-title">StaticBoard Config Generator</div>
+      <div class="tool-subtitle">Edit host config and export a fresh <code>site-config.js</code>.</div>
+    </div>
+
+    <section class="tool-box">
+      <div class="tool-box-head">GitHub</div>
+      <table class="tool-table">
+        <tbody>
+          <tr>
+            <th>Owner</th>
+            <td><input id="github-owner" type="text" placeholder="StaticBoard"></td>
+            <th>Repo</th>
+            <td><input id="github-repo" type="text" placeholder="StaticBoard"></td>
+          </tr>
+          <tr>
+            <th>Token</th>
+            <td colspan="3"><input id="github-token" type="text" placeholder="ghp_..."></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="tool-box">
+      <div class="tool-box-head">Site</div>
+      <table class="tool-table">
+        <tbody>
+          <tr>
+            <th>Log Label</th>
+            <td><input id="label-log" type="text" placeholder="log"></td>
+            <th>Pinned Label</th>
+            <td><input id="label-pinned" type="text" placeholder="pinned"></td>
+          </tr>
+          <tr>
+            <th>Default Theme</th>
+            <td colspan="3"><select id="site-default-theme"></select></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="tool-box">
+      <div class="tool-box-head tool-box-head-flex">
+        <div>
+          <strong>Boards</strong>
+          <span class="head-note">Add, remove, and edit per-board settings.</span>
+        </div>
+        <button id="add-board-btn" type="button" class="secondary-btn">Add Board</button>
+      </div>
+      <div id="boards-list" class="boards-list"></div>
+    </section>
+
+    <section class="tool-box">
+      <div class="tool-box-head tool-box-head-flex">
+        <div>
+          <strong>Output</strong>
+          <span class="head-note">This writes only <code>site-config.js</code>.</span>
+        </div>
+        <div class="actions">
+          <button id="reload-current-btn" type="button" class="secondary-btn">Reload Current</button>
+          <button id="copy-output-btn" type="button" class="secondary-btn">Copy</button>
+          <button id="download-output-btn" type="button" class="primary-btn">Download site-config.js</button>
+        </div>
+      </div>
+      <div id="generator-status" class="status"></div>
+      <textarea id="output" class="output" spellcheck="false" readonly></textarea>
+    </section>
+  </main>
+
+  <script src="/tools/config-generator.js"></script>
+</body>
+</html>
