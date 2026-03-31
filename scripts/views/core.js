@@ -96,12 +96,16 @@ const ViewCore = (() => {
 
   function createBoardIssueSignature(issues) {
     // Include state fields so a thread changing from open -> completed forces a
-    // board rerender even if its post count did not change.
+    // board rerender even if its post count did not change. bump_at and
+    // last_reply_at are engine-derived activity fields, so they also need to
+    // participate or manual refresh can miss sage/non-sage updates.
     return issues.map(issue => [
       issue.number,
       issue.state || '',
       issue.state_reason || '',
       issue.updated_at || '',
+      issue.bump_at || '',
+      issue.last_reply_at || '',
       issue.comments || 0,
       issue.isPinned ? '1' : '0',
     ].join(':')).join('|');
