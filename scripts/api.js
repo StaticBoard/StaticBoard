@@ -64,7 +64,64 @@ const API = (() => {
       state_reason: getIssueStateReason(issue),
       isClosed: isThreadClosed(issue),
       isCompleted: isCompletedThread(issue),
+      bump_at: issue.bump_at || issue.updated_at || issue.created_at || null,
+      last_reply_at: issue.last_reply_at || null,
     };
+  }
+
+  function getThreadActivityTime(issue) {
+    return new Date(issue.bump_at || issue.updated_at || issue.created_at || 0).getTime();
+  }
+
+  function sortThreadsByActivity(issues) {
+    return issues.slice().sort((a, b) => {
+      const timeDiff = getThreadActivityTime(b) - getThreadActivityTime(a);
+      if (timeDiff !== 0) return timeDiff;
+      return Number(b.number || 0) - Number(a.number || 0);
+    });
+  }
+
+  async function hydrateThreadActivity(issue) {
+    const normalizedIssue = normalizeIssue(issue);
+
+    if (!normalizedIssue || !isVisibleBoardThread(normalizedIssue) || !normalizedIssue.comments) {
+      return normalizeIssue({
+        ...normalizedIssue,
+        bump_at: normalizedIssue.created_at || normalizedIssue.updated_at || null,
+        last_reply_at: null,
+      });
+    }
+
+    try {
+      const replies = await API.getReplies(normalizedIssue.number);
+      let lastReplyAt = normalizedIssue.created_at || normalizedIssue.updated_at || null;
+      let lastBumpAt = normalizedIssue.created_at || normalizedIssue.updated_at || null;
+
+      replies.forEach((reply) => {
+        const replyTime = reply && reply.created_at ? reply.created_at : null;
+        if (!replyTime) return;
+
+        lastReplyAt = replyTime;
+
+        const meta = Utils.parseMeta(reply.body);
+        if (!meta.sage) {
+          lastBumpAt = replyTime;
+        }
+      });
+
+      return normalizeIssue({
+        ...normalizedIssue,
+        bump_at: lastBumpAt,
+        last_reply_at: replies.length ? lastReplyAt : null,
+      });
+    } catch (e) {
+      console.warn('Failed to hydrate thread activity:', normalizedIssue.number, e);
+      return normalizeIssue(normalizedIssue);
+    }
+  }
+
+  async function hydrateThreadsActivity(issues) {
+    return Promise.all((issues || []).map(hydrateThreadActivity));
   }
 
   function getGitHubPinnedIssuesForBoard(pinnedIssues, boardLabel) {
@@ -76,29 +133,29 @@ const API = (() => {
   function mergePinnedIssuesForBoard(issues, pinnedIssues, boardKey) {
     const boardLabel = getBoardLabel(boardKey);
     const visibleIssues = issues.filter(isVisibleBoardThread);
-    const labelPinnedIssues = visibleIssues
+    const labelPinnedIssues = sortThreadsByActivity(visibleIssues
       .filter(issue => issueHasLabel(issue, CONFIG.labels.pinned))
       .map(issue => normalizeIssue({
         ...issue,
         isPinned: true,
-      }));
+      })));
     const labelPinnedNumbers = new Set(labelPinnedIssues.map(issue => issue.number));
-    const githubPinnedIssues = getGitHubPinnedIssuesForBoard(pinnedIssues, boardLabel)
+    const githubPinnedIssues = sortThreadsByActivity(getGitHubPinnedIssuesForBoard(pinnedIssues, boardLabel)
       .filter(issue => !labelPinnedNumbers.has(issue.number))
       .map(issue => normalizeIssue({
         ...issue,
         isPinned: true,
-      }));
+      })));
     const pinnedNumbers = new Set([
       ...labelPinnedIssues.map(issue => issue.number),
       ...githubPinnedIssues.map(issue => issue.number),
     ]);
-    const normalIssues = visibleIssues
+    const normalIssues = sortThreadsByActivity(visibleIssues
       .filter(issue => !pinnedNumbers.has(issue.number))
       .map(issue => normalizeIssue({
         ...issue,
         isPinned: false,
-      }));
+      })));
 
     // Label-based pinning is the engine-level rule. GitHub pinned issues still
     // work, but only as a secondary fallback for threads without the label.
@@ -241,7 +298,12 @@ const API = (() => {
         }),
       ]);
 
-      return mergePinnedIssuesForBoard(issues, pinnedIssues, boardKey);
+      const [hydratedIssues, hydratedPinnedIssues] = await Promise.all([
+        hydrateThreadsActivity(issues),
+        hydrateThreadsActivity(pinnedIssues),
+      ]);
+
+      return mergePinnedIssuesForBoard(hydratedIssues, hydratedPinnedIssues, boardKey);
     },
 
     async getAllThreads(boardKey, options = {}) {
@@ -270,7 +332,12 @@ const API = (() => {
         return [];
       });
 
-      return mergePinnedIssuesForBoard(issues, pinnedIssues, boardKey);
+      const [hydratedIssues, hydratedPinnedIssues] = await Promise.all([
+        hydrateThreadsActivity(issues),
+        hydrateThreadsActivity(pinnedIssues),
+      ]);
+
+      return mergePinnedIssuesForBoard(hydratedIssues, hydratedPinnedIssues, boardKey);
     },
 
     async getBoardStats(boardKey, options = {}) {
