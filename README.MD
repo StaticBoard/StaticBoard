@@ -138,4 +138,4 @@ Most management happens directly in GitHub:
 ## Notes
 
 - The posting token currently lives in client-side JS. That is a known compromise of the current approach, you may use Cloudflare workers or something, but what's the point of using this then?
-- This project is easiest to recommend for small, low-stakes boards and experiments and the best to not recommend at all.
+- This project is easiest to recommend for small, low-stakes boards and experiments and best to not recommend at all.
