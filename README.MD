@@ -23,7 +23,7 @@ StaticBoard covers those basics in a weird but quasi-practical way:
 - Log page: post an issue with a label instead of fucking with HTML.
 - Search: board search is local now, and can search both OPs and replies.
 - Local Settings: saved name, `(You)` markers, theme CSS, quote previews, reply backlinks.
-- Per-board config: read-only boards, post/reply toggles, ID toggles, forced thread IDs, custom placeholders, nav visibility.
+- Per-board config: read-only boards, post/reply toggles, ID toggles, forced thread IDs, custom placeholders, nav visibility, board-default themes, and board-forced themes.
 - Board cards: reply count plus how long ago the last reply was.
 
 ## What It Does Well
@@ -56,9 +56,12 @@ It is best thought of as a static toy-engine, some fancy way to handle your repo
    - `CONFIG.github.token` -- hosting it plainly will let anyone abuse it so think of the way around yourself, I didn't care at the moment.
    - `CONFIG.labels.log`
    - `CONFIG.labels.pinned`
+   - `CONFIG.ui.defaultThemePreset` -- the site-wide built-in preset used when a page or board does not set its own default
    - `BOARDS`
 5. Upload this folder to your static host. (Nekoweb works like a charm)
 6. Open the site and tinker shit.
+
+Built-in presets live in `scripts/theme-presets.js`.
 
 ## Board Setup
 
@@ -72,6 +75,7 @@ const BOARDS = {
     name: '/plaza/',
     desc: 'General posting.',
     forceThreadIds: true,
+    defaultThemePreset: 'red',
     searchPlaceholder: 'Search /plaza/',
   },
   meta:  {
@@ -79,6 +83,7 @@ const BOARDS = {
     desc: 'Site discussion.',
     allowIds: false,
     readOnly: false,
+    forceThemePreset: 'Blue',
   },
 };
 ```
@@ -97,6 +102,8 @@ Per-board options:
 - `forceThreadIds` (`boolean`): forces every new thread on that board to use IDs.
 - `defaultIdsEnabled` (`boolean`): controls whether the IDs checkbox starts checked.
 - `searchEnabled` (`boolean`): enables or disables board search for that board.
+- `defaultThemePreset` (`string`): built-in preset key used on this board until a visitor saves their own theme choice.
+- `forceThemePreset` (`string`): built-in preset key that always overrides local theme choice on this board.
 - `threadSubjectPlaceholder` (`string`): placeholder text for the new thread subject field.
 - `threadCommentPlaceholder` (`string`): placeholder text for the new thread body field.
 - `replyCommentPlaceholder` (`string`): placeholder text for the reply body field.
@@ -123,6 +130,7 @@ Most management happens directly in GitHub:
 - `log.html`: site log page
 - `board.js`: bootstrap entry
 - `scripts/config.js`: site config and board list
+- `scripts/theme-presets.js`: built-in theme registry
 - `scripts/api.js`: GitHub API layer
 - `scripts/utils.js`: parsing and rendering helpers
 - `scripts/persistence.js`: settings, local states, IDs
@@ -138,4 +146,4 @@ Most management happens directly in GitHub:
 ## Notes
 
 - The posting token currently lives in client-side JS. That is a known compromise of the current approach, you may use Cloudflare workers or something, but what's the point of using this then?
-- This project is easiest to recommend for small, low-stakes boards and experiments and best to not recommend at all.
+- This project is easiest to recommend for small, low-stakes boards and experiments and the best to not recommend at all.
